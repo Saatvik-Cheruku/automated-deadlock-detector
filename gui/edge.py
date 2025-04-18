@@ -1,6 +1,9 @@
+from xml.dom import Node
 import pygame
 from typing import Tuple
-from .utils import BLACK
+
+# Define colors
+BLACK = (0, 0, 0)
 
 class Edge:
     def __init__(self, start: 'Node', end: 'Node', edge_type: str):

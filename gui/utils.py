@@ -7,6 +7,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+GRAY = (200, 200, 200)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
 
@@ -18,6 +19,18 @@ SCREEN_HEIGHT = 600
 BUTTON_WIDTH = 150
 BUTTON_HEIGHT = 40
 BUTTON_MARGIN = 10
+
+# Node properties
+NODE_RADIUS = 20
+NODE_COLORS = {
+    'process': GREEN,
+    'resource': RED
+}
+
+# Edge properties
+EDGE_WIDTH = 2
+ARROW_LENGTH = 15
+ARROW_ANGLE = 30
 
 class Button:
     def __init__(self, x: int, y: int, width: int, height: int, text: str, 
