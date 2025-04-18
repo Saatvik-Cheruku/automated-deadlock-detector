@@ -1,87 +1,299 @@
 import pygame
 import sys
-from .graph import Graph
-from .node import Node
-from .edge import Edge
-from .ui_utils import Button, Panel, PRIMARY_COLOR, SECONDARY_COLOR, ACCENT_COLOR, WHITE, BLACK, DARK_GRAY
+import os
+import math
+from typing import List, Optional, Tuple
 
-# Initialize pygame
-pygame.init()
+# Add the parent directory to the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
 
-# Set up the display
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Deadlock Detection - No deadlock detected")
+from gui.background_system import BackgroundSystem
+from gui.ui_utils import Panel, Button, Popup, PANEL_BG, create_gradient_surface, GRID_COLOR, SUCCESS_COLOR, ACCENT_COLOR
+from gui.deadlock_detector import DeadlockDetector
+from gui.process import Process, Resource
+from gui.graph import Graph
+from gui.node import Node
+from gui.edge import Edge
 
-# Colors
-BACKGROUND_COLOR = (245, 246, 250)  # Light gray background
+# Define colors for different node types
+PROCESS_COLORS = [
+    (50, 205, 50),    # Lime Green
+    (147, 112, 219),  # Purple
+    (255, 165, 0)     # Orange
+]
 
-# Create graph instance
-graph = Graph()
-
-# Create UI elements with adjusted position and size
-check_button = Button(WIDTH - 180, 20, 140, 40, "Check Deadlock")  # Moved 20px more to the left
-info_panel = Panel(10, 10, 250, 150, "Instructions")
-
-# Main game loop
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+class DeadlockSimulator:
+    def __init__(self):
+        pygame.init()
         
-        # Handle button clicks
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:  # Left click
-                pos = pygame.mouse.get_pos()
+        # Get screen info for responsive sizing
+        screen_info = pygame.display.Info()
+        self.width = min(int(screen_info.current_w * 0.8), 1280)
+        self.height = min(int(screen_info.current_h * 0.8), 800)
+        
+        # Center the window
+        os.environ['SDL_VIDEO_CENTERED'] = '1'
+        
+        # Create window with hardware acceleration
+        self.screen = pygame.display.set_mode((self.width, self.height), 
+                                            pygame.DOUBLEBUF | pygame.HWSURFACE)
+        pygame.display.set_caption("Deadlock Detection Simulator 🎮")
+        
+        # Initialize background system
+        self.background = BackgroundSystem(self.width, self.height)
+        
+        # Initialize state
+        self.selected_node = None
+        self.dragging = False
+        self.clock = pygame.time.Clock()
+        self.animation_time = 0
+        self.next_color_index = 0
+        self.current_mode = "process"  # Default mode
+        
+        # Initialize deadlock detector
+        self.detector = DeadlockDetector()
+        
+        # Create instruction panel
+        self.setup_ui()
+        
+        self.popup = None
+        self.running = True
+        
+    def setup_ui(self):
+        # Create instruction panel on the left
+        panel_width = 300
+        self.panel = Panel(
+            20, 20,
+            panel_width, 200,
+            "Instructions",
+            [
+                "Left-click to create nodes",
+                "Right-click to delete nodes",
+                "Click 'Check Deadlock' to detect cycles",
+                "Use mode buttons to switch between",
+                "Process (P) and Resource (R) nodes"
+            ]
+        )
+        
+        # Create buttons
+        button_width = 150
+        button_height = 40
+        button_spacing = 20
+        
+        # Mode selector buttons
+        self.process_mode_button = Button(
+            self.width - button_width * 2 - button_spacing - 20, 20,
+            button_width, button_height,
+            "Process Mode (P)",
+            lambda: self.set_mode("process")
+        )
+        
+        self.resource_mode_button = Button(
+            self.width - button_width - 20, 20,
+            button_width, button_height,
+            "Resource Mode (R)",
+            lambda: self.set_mode("resource")
+        )
+        
+        # Check deadlock button
+        self.check_button = Button(
+            self.width - button_width - 20, 20 + button_height + button_spacing,
+            button_width, button_height,
+            "Check Deadlock",
+            self.check_deadlock
+        )
+        
+    def set_mode(self, mode: str):
+        """Set the current node creation mode"""
+        self.current_mode = mode
+        # Update button colors
+        self.process_mode_button.is_active = (mode == "process")
+        self.resource_mode_button.is_active = (mode == "resource")
+        
+    def get_next_process_color(self):
+        color = PROCESS_COLORS[self.next_color_index]
+        self.next_color_index = (self.next_color_index + 1) % len(PROCESS_COLORS)
+        return color
+        
+    def add_process(self, pos):
+        """Add a process at the given position"""
+        process = self.detector.add_process(pos)
+        process.color = self.get_next_process_color()
+        return process
+        
+    def add_resource(self, pos):
+        """Add a resource at the given position"""
+        return self.detector.add_resource(pos)
+        
+    def check_deadlock(self):
+        """Check for deadlocks and display result"""
+        has_deadlock, deadlocked = self.detector.detect_deadlock()
+        if has_deadlock:
+            self.popup = Popup("Deadlock Detected!", False)
+            self.check_button.animate_result(False)
+        else:
+            self.popup = Popup("No Deadlock Detected", True)
+            self.check_button.animate_result(True)
+    
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
                 
-                # Check if button was clicked
-                if check_button.is_clicked(pos):
-                    if graph.has_cycle():
-                        pygame.display.set_caption("Deadlock Detection - DEADLOCK DETECTED!")
-                        print("Deadlock detected!")
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                
+                # Handle button clicks
+                if self.check_button.rect.collidepoint(mouse_pos):
+                    self.check_button.is_clicked(mouse_pos)
+                    continue
+                    
+                if self.process_mode_button.rect.collidepoint(mouse_pos):
+                    self.process_mode_button.is_clicked(mouse_pos)
+                    continue
+                    
+                if self.resource_mode_button.rect.collidepoint(mouse_pos):
+                    self.resource_mode_button.is_clicked(mouse_pos)
+                    continue
+                    
+                # Don't handle clicks in panel area
+                if self.panel.contains_point(mouse_pos):
+                    continue
+                    
+                if event.button == 1:  # Left click
+                    # Add process or resource based on current mode
+                    if self.current_mode == "process":
+                        process = self.add_process((mouse_pos[0] - 25, mouse_pos[1] - 25))
+                        print(f"Created process {process.name} at {process.position}")
                     else:
-                        pygame.display.set_caption("Deadlock Detection - No deadlock detected")
-                        print("No deadlock detected.")
+                        resource = self.add_resource((mouse_pos[0] - 25, mouse_pos[1] - 25))
+                        print(f"Created resource {resource.name} at {resource.position}")
+                        
+                elif event.button == 3:  # Right click
+                    # Remove node if clicked
+                    for process in list(self.detector.processes.values()):
+                        if process.contains_point(mouse_pos):
+                            self.detector.remove_process(process)
+                            print(f"Removed process {process.name}")
+                            break
+                    for resource in list(self.detector.resources.values()):
+                        if resource.contains_point(mouse_pos):
+                            self.detector.remove_resource(resource)
+                            print(f"Removed resource {resource.name}")
+                            break
+                            
+            elif event.type == pygame.MOUSEMOTION:
+                # Update button hover states
+                self.check_button.update(pygame.mouse.get_pos())
+                self.process_mode_button.update(pygame.mouse.get_pos())
+                self.resource_mode_button.update(pygame.mouse.get_pos())
                 
-                # Add node or create edge
-                else:
-                    graph.handle_click(pos)
+    def update(self, dt):
+        # Update animations
+        self.animation_time += dt
+        if self.animation_time >= 2 * math.pi:
+            self.animation_time = 0
             
-            elif event.button == 3:  # Right click
-                pos = pygame.mouse.get_pos()
-                graph.handle_right_click(pos)
+        # Update background
+        self.background.update(dt)
         
-        # Handle keyboard input
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_1:
-                graph.set_mode("process")
-            elif event.key == pygame.K_2:
-                graph.set_mode("resource")
+        # Update popup
+        if self.popup:
+            if self.popup.update(dt):
+                self.popup = None
+                
+    def draw(self):
+        # Draw background
+        self.background.draw(self.screen)
         
-        # Update button hover state
-        if event.type == pygame.MOUSEMOTION:
-            check_button.update(event.pos)
-    
-    # Draw everything
-    # Draw background with gradient
-    screen.fill(BACKGROUND_COLOR)
-    
-    # Draw a subtle grid pattern
-    for x in range(0, WIDTH, 40):
-        pygame.draw.line(screen, (230, 230, 230), (x, 0), (x, HEIGHT))
-    for y in range(0, HEIGHT, 40):
-        pygame.draw.line(screen, (230, 230, 230), (0, y), (WIDTH, y))
-    
-    # Draw the graph
-    graph.draw(screen)
-    
-    # Draw UI elements
-    check_button.draw(screen)
-    info_panel.draw(screen)
-    
-    # Update the display
-    pygame.display.flip()
+        # Draw edges between nodes
+        for process in self.detector.processes.values():
+            # Draw allocation edges
+            for resource in process.allocated:
+                start_pos = process.position
+                end_pos = resource.position
+                pygame.draw.line(self.screen, (255, 255, 255),
+                               (start_pos[0] + 25, start_pos[1] + 25),
+                               (end_pos[0] + 25, end_pos[1] + 25), 2)
+                               
+            # Draw request edges (dashed)
+            for resource in process.requesting:
+                start_pos = process.position
+                end_pos = resource.position
+                dash_length = 5
+                dx = end_pos[0] - start_pos[0]
+                dy = end_pos[1] - start_pos[1]
+                dist = math.sqrt(dx * dx + dy * dy)
+                if dist > 0:  # Avoid division by zero
+                    dx /= dist
+                    dy /= dist
+                    
+                    for i in range(0, int(dist), dash_length * 2):
+                        start = (start_pos[0] + dx * i + 25,
+                                start_pos[1] + dy * i + 25)
+                        end = (start_pos[0] + dx * (i + dash_length) + 25,
+                              start_pos[1] + dy * (i + dash_length) + 25)
+                        if i + dash_length > dist:
+                            end = (end_pos[0] + 25, end_pos[1] + 25)
+                        pygame.draw.line(self.screen, (200, 200, 200), start, end, 2)
+        
+        # Draw nodes
+        for process in self.detector.processes.values():
+            # Draw glow effect
+            glow_radius = 30
+            glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+            for r in range(glow_radius, 0, -1):
+                alpha = int(50 * (1 - r/glow_radius))
+                pygame.draw.circle(glow_surface, (*process.color, alpha),
+                                 (glow_radius, glow_radius), r)
+            self.screen.blit(glow_surface,
+                           (process.position[0] + 25 - glow_radius,
+                            process.position[1] + 25 - glow_radius))
+            
+            # Draw main circle
+            pygame.draw.circle(self.screen, process.color,
+                             (process.position[0] + 25, process.position[1] + 25), 25)
+            # Draw process name
+            font = pygame.font.Font(None, 36)
+            text = font.render(process.name, True, (255, 255, 255))
+            text_rect = text.get_rect(center=(process.position[0] + 25,
+                                            process.position[1] + 25))
+            self.screen.blit(text, text_rect)
+            
+        for resource in self.detector.resources.values():
+            # Draw resource as red square
+            pygame.draw.rect(self.screen, (200, 50, 50),
+                           (resource.position[0], resource.position[1], 50, 50))
+            # Draw resource name
+            font = pygame.font.Font(None, 36)
+            text = font.render(resource.name, True, (255, 255, 255))
+            text_rect = text.get_rect(center=(resource.position[0] + 25,
+                                            resource.position[1] + 25))
+            self.screen.blit(text, text_rect)
+        
+        # Draw UI on top
+        self.panel.draw(self.screen)
+        self.check_button.draw(self.screen)
+        self.process_mode_button.draw(self.screen)
+        self.resource_mode_button.draw(self.screen)
+        
+        if self.popup:
+            self.popup.draw(self.screen)
+            
+    def run(self):
+        while self.running:
+            dt = self.clock.tick(60) / 1000.0  # Convert to seconds
+            self.handle_events()
+            self.update(dt)
+            self.draw()
+            pygame.display.flip()
+            
+        pygame.quit()
+        sys.exit()
 
-pygame.quit()
-sys.exit() 
+if __name__ == "__main__":
+    app = DeadlockSimulator()
+    app.run()
