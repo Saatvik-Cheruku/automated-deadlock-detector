@@ -1,12 +1,12 @@
-from xml.dom import Node
 import pygame
 from typing import Tuple
+from gui.node import Node
 
 # Define colors
 BLACK = (0, 0, 0)
 
 class Edge:
-    def __init__(self, start: 'Node', end: 'Node', edge_type: str):
+    def __init__(self, start: Node, end: Node, edge_type: str):
         """
         Initialize an edge in the graph with enhanced visual appearance.
         

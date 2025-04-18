@@ -1,106 +1,113 @@
-from typing import List, Set, Dict, Optional
-from .node import Node
-from .edge import Edge
+import pygame
+from gui.node import Node
+from gui.edge import Edge
+from typing import List, Optional, Tuple
 
 class Graph:
     def __init__(self):
         """Initialize an empty graph."""
-        self.nodes: List[Node] = []
-        self.edges: List[Edge] = []
-        self.process_count = 0
-        self.resource_count = 0
+        self.nodes = []
+        self.edges = []
+        self.selected_node = None
+        self.mode = "process"  # Default mode for node creation
         
-    def add_node(self, node_type: str, position: tuple) -> Node:
+    def add_node(self, node_type: str, position: Tuple[int, int]) -> None:
         """Add a new node to the graph."""
-        if node_type == 'process':
-            node_id = f'P{self.process_count}'
-            self.process_count += 1
-        else:
-            node_id = f'R{self.resource_count}'
-            self.resource_count += 1
-            
-        node = Node(node_id, node_type, position)
+        node = Node(position, node_type)
         self.nodes.append(node)
-        return node
-    
-    def add_edge(self, start: Node, end: Node, edge_type: str) -> bool:
-        """Add a new edge to the graph if it doesn't already exist."""
-        # Check if edge already exists
-        for edge in self.edges:
-            if (edge.start == start and edge.end == end) or \
-               (edge.start == end and edge.end == start):
-                return False
-                
+        
+    def add_edge(self, start: Node, end: Node) -> None:
+        """Add a new edge between two nodes."""
+        # Determine edge type based on node types
+        if start.type == 'process' and end.type == 'resource':
+            edge_type = 'request'
+        elif start.type == 'resource' and end.type == 'process':
+            edge_type = 'allocation'
+        else:
+            return  # Invalid edge type
+            
         edge = Edge(start, end, edge_type)
-        self.edges.append(edge)
-        return True
-    
+        if edge not in self.edges:
+            self.edges.append(edge)
+            
     def remove_node(self, node: Node) -> None:
         """Remove a node and all its connected edges."""
-        if node in self.nodes:
-            self.nodes.remove(node)
-            self.edges = [edge for edge in self.edges 
-                         if edge.start != node and edge.end != node]
-    
-    def remove_edge(self, edge: Edge) -> None:
-        """Remove an edge from the graph."""
-        if edge in self.edges:
-            self.edges.remove(edge)
-    
-    def get_node_at_position(self, pos: tuple) -> Optional[Node]:
-        """Get the node at a specific position if it exists."""
+        self.edges = [e for e in self.edges if e.start != node and e.end != node]
+        self.nodes.remove(node)
+        
+    def get_node_at_position(self, position: Tuple[int, int]) -> Optional[Node]:
+        """Return the node at the given position, if any."""
         for node in self.nodes:
-            if node.is_clicked(pos):
+            if node.contains_point(position):
                 return node
         return None
-    
-    def detect_deadlock(self) -> bool:
-        """
-        Detect deadlock using DFS cycle detection.
-        Returns True if a deadlock is detected, False otherwise.
-        """
-        visited: Set[Node] = set()
-        recursion_stack: Set[Node] = set()
+        
+    def handle_click(self, position: Tuple[int, int]) -> None:
+        """Handle mouse click events."""
+        clicked_node = self.get_node_at_position(position)
+        
+        if clicked_node:
+            if self.selected_node is None:
+                self.selected_node = clicked_node
+                clicked_node.selected = True
+            else:
+                if self.selected_node != clicked_node:
+                    self.add_edge(self.selected_node, clicked_node)
+                self.selected_node.selected = False
+                self.selected_node = None
+        else:
+            if self.selected_node:
+                self.selected_node.selected = False
+                self.selected_node = None
+            else:
+                self.add_node(self.mode, position)
+                
+    def handle_right_click(self, position: Tuple[int, int]) -> None:
+        """Handle right-click events (node deletion)."""
+        clicked_node = self.get_node_at_position(position)
+        if clicked_node:
+            self.remove_node(clicked_node)
+            
+    def set_mode(self, mode: str) -> None:
+        """Set the current node creation mode."""
+        self.mode = mode
+        
+    def has_cycle(self) -> bool:
+        """Check if the graph contains a cycle (deadlock)."""
+        visited = set()
+        path = set()
         
         def dfs(node: Node) -> bool:
-            """Depth-first search to detect cycles."""
             visited.add(node)
-            recursion_stack.add(node)
+            path.add(node)
             
-            # Get all outgoing edges from this node
-            for edge in self.edges:
-                if edge.start == node:
-                    neighbor = edge.end
-                    if neighbor not in visited:
-                        if dfs(neighbor):
-                            return True
-                    elif neighbor in recursion_stack:
+            # Get all nodes that this node has edges to
+            neighbors = [e.end for e in self.edges if e.start == node]
+            
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    if dfs(neighbor):
                         return True
-                        
-            recursion_stack.remove(node)
+                elif neighbor in path:
+                    return True
+                    
+            path.remove(node)
             return False
-        
-        # Check each unvisited node
+            
+        # Start DFS from each unvisited node
         for node in self.nodes:
             if node not in visited:
                 if dfs(node):
                     return True
                     
         return False
-    
-    def draw(self, screen) -> None:
-        """Draw all nodes and edges on the screen."""
-        # Draw edges first (so they appear behind nodes)
+        
+    def draw(self, screen: pygame.Surface) -> None:
+        """Draw the entire graph."""
+        # Draw edges first
         for edge in self.edges:
             edge.draw(screen)
             
-        # Draw nodes
+        # Draw nodes on top
         for node in self.nodes:
-            node.draw(screen)
-    
-    def reset(self) -> None:
-        """Reset the graph to its initial state."""
-        self.nodes.clear()
-        self.edges.clear()
-        self.process_count = 0
-        self.resource_count = 0 
+            node.draw(screen) 

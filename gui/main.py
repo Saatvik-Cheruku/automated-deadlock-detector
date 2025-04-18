@@ -3,7 +3,7 @@ import sys
 from gui.graph import Graph
 from gui.node import Node
 from gui.edge import Edge
-from gui.ui_utils import Button, Panel
+from gui.utils import Button, Panel
 
 # Initialize pygame
 pygame.init()

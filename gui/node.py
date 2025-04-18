@@ -1,6 +1,12 @@
 import pygame
 from typing import Tuple, List
-from .utils import WHITE, BLACK, YELLOW
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 
 class Node:
     def __init__(self, node_id: str, node_type: str, position: Tuple[int, int], radius: int = 30):
@@ -18,8 +24,8 @@ class Node:
         self.position = position
         self.radius = radius
         self.selected = False
-        self.color = (0, 200, 0) if node_type == 'process' else (200, 0, 0)  # Softer colors
-        self.highlight_color = (0, 255, 0) if node_type == 'process' else (255, 0, 0)
+        self.color = GREEN if node_type == 'process' else RED
+        self.highlight_color = BLUE
         self.font = pygame.font.Font(None, 24)
         self.shadow_offset = 2
         
@@ -31,11 +37,11 @@ class Node:
         pygame.draw.circle(screen, (100, 100, 100), shadow_pos, self.radius)
         
         # Draw main circle
-        color = self.highlight_color if self.selected else self.color
-        pygame.draw.circle(screen, color, self.position, self.radius)
+        pygame.draw.circle(screen, self.color, self.position, self.radius)
         
         # Draw border
-        pygame.draw.circle(screen, BLACK, self.position, self.radius, 2)
+        border_color = self.highlight_color if self.selected else BLACK
+        pygame.draw.circle(screen, border_color, self.position, self.radius, 3)
         
         # Draw node ID with shadow
         text = self.font.render(self.id, True, BLACK)
@@ -44,7 +50,7 @@ class Node:
         
         # Draw selection highlight
         if self.selected:
-            pygame.draw.circle(screen, YELLOW, self.position, self.radius + 3, 2)
+            pygame.draw.circle(screen, WHITE, self.position, self.radius + 3, 2)
             
     def is_clicked(self, pos: Tuple[int, int]) -> bool:
         """Check if the node was clicked."""
@@ -60,4 +66,17 @@ class Node:
                 connected_nodes.append(edge.end)
             elif edge.end == self:
                 connected_nodes.append(edge.start)
-        return connected_nodes 
+        return connected_nodes
+
+    def contains_point(self, point: Tuple[int, int]) -> bool:
+        """Check if a point is inside the node."""
+        x, y = point
+        node_x, node_y = self.position
+        distance = ((x - node_x) ** 2 + (y - node_y) ** 2) ** 0.5
+        return distance <= self.radius
+        
+    def __eq__(self, other: 'Node') -> bool:
+        """Check if two nodes are equal."""
+        if not isinstance(other, Node):
+            return False
+        return self.position == other.position and self.type == other.type 
