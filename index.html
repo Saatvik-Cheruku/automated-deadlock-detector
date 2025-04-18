@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Deadlock Detector</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">Deadlock Detector</div>
+            <ul>
+                <li><a href="#about">About</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="https://github.com/Saatvik-Cheruku/automated-deadlock-detector" target="_blank">
+                    <i class="fab fa-github"></i> GitHub
+                </a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero">
+            <div class="hero-content">
+                <h1>Automated Deadlock Detection</h1>
+                <p>A Python-based simulation tool that demonstrates deadlock detection in operating systems using Resource Allocation Graphs (RAG).</p>
+                <a href="#demo" class="cta-button">Try Demo</a>
+            </div>
+        </section>
+
+        <section id="about">
+            <h2>About the Project</h2>
+            <div class="about-content">
+                <div class="about-text">
+                    <p>This project implements a deadlock detection system using Resource Allocation Graphs (RAG). It provides a visual interface for understanding and simulating deadlock scenarios in operating systems.</p>
+                    <p>The system uses Depth-First Search (DFS) to detect cycles in the graph, which is the standard method for deadlock detection in operating systems.</p>
+                </div>
+                <div class="about-image">
+                    <img src="https://via.placeholder.com/400x300" alt="Deadlock Detection Visualization">
+                </div>
+            </div>
+        </section>
+
+        <section id="features">
+            <h2>Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="fas fa-project-diagram"></i>
+                    <h3>Interactive RAG</h3>
+                    <p>Visual representation of Resource Allocation Graphs with interactive nodes and edges.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-search"></i>
+                    <h3>Real-time Detection</h3>
+                    <p>Instant deadlock detection using DFS algorithm with visual feedback.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <h3>User-Friendly</h3>
+                    <p>Intuitive interface with easy node creation and edge management.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-code"></i>
+                    <h3>Open Source</h3>
+                    <p>Fully open-source implementation with clean, documented code.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="demo">
+            <h2>Live Demo</h2>
+            <div class="demo-container">
+                <div class="demo-instructions">
+                    <h3>How to Use</h3>
+                    <ol>
+                        <li>Press '1' and click to create process nodes (green)</li>
+                        <li>Press '2' and click to create resource nodes (red)</li>
+                        <li>Left-click nodes to create edges</li>
+                        <li>Right-click nodes to delete them</li>
+                        <li>Click "Check Deadlock" to detect cycles</li>
+                    </ol>
+                </div>
+                <div class="demo-window">
+                    <!-- Python application will be embedded here -->
+                    <iframe src="gui/main.py" frameborder="0"></iframe>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation">
+            <h2>Installation</h2>
+            <div class="installation-steps">
+                <div class="step">
+                    <h3>1. Clone the Repository</h3>
+                    <code>git clone https://github.com/Saatvik-Cheruku/automated-deadlock-detector.git</code>
+                </div>
+                <div class="step">
+                    <h3>2. Install Dependencies</h3>
+                    <code>pip install -r requirements.txt</code>
+                </div>
+                <div class="step">
+                    <h3>3. Run the Application</h3>
+                    <code>cd gui<br>python main.py</code>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>About</h3>
+                <p>Created by Saatvik Cheruku</p>
+                <p>A project demonstrating deadlock detection in operating systems.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Links</h3>
+                <ul>
+                    <li><a href="https://github.com/Saatvik-Cheruku/automated-deadlock-detector">GitHub Repository</a></li>
+                    <li><a href="#documentation">Documentation</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Automated Deadlock Detector. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html> 
