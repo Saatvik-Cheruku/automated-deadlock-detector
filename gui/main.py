@@ -3,7 +3,7 @@ import sys
 from .graph import Graph
 from .node import Node
 from .edge import Edge
-from .ui_utils import Button, Panel
+from .ui_utils import Button, Panel, PRIMARY_COLOR, SECONDARY_COLOR, ACCENT_COLOR, WHITE, BLACK, DARK_GRAY
 
 # Initialize pygame
 pygame.init()
@@ -14,16 +14,14 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Deadlock Detection - No deadlock detected")
 
 # Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GRAY = (200, 200, 200)
+BACKGROUND_COLOR = (245, 246, 250)  # Light gray background
 
 # Create graph instance
 graph = Graph()
 
-# Create UI elements
-check_button = Button(700, 50, 80, 30, "Check", GRAY)
-info_panel = Panel(10, 10, 200, 100, "Instructions")
+# Create UI elements with adjusted position and size
+check_button = Button(WIDTH - 180, 20, 140, 40, "Check Deadlock")  # Moved 20px more to the left
+info_panel = Panel(10, 10, 250, 150, "Instructions")
 
 # Main game loop
 running = True
@@ -60,10 +58,25 @@ while running:
                 graph.set_mode("process")
             elif event.key == pygame.K_2:
                 graph.set_mode("resource")
+        
+        # Update button hover state
+        if event.type == pygame.MOUSEMOTION:
+            check_button.update(event.pos)
     
     # Draw everything
-    screen.fill(WHITE)
+    # Draw background with gradient
+    screen.fill(BACKGROUND_COLOR)
+    
+    # Draw a subtle grid pattern
+    for x in range(0, WIDTH, 40):
+        pygame.draw.line(screen, (230, 230, 230), (x, 0), (x, HEIGHT))
+    for y in range(0, HEIGHT, 40):
+        pygame.draw.line(screen, (230, 230, 230), (0, y), (WIDTH, y))
+    
+    # Draw the graph
     graph.draw(screen)
+    
+    # Draw UI elements
     check_button.draw(screen)
     info_panel.draw(screen)
     
