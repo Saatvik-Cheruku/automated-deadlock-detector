@@ -1,7 +1,7 @@
 import pygame
-from gui.node import Node
-from gui.edge import Edge
-from typing import List, Optional, Tuple
+from .node import Node
+from .edge import Edge
+from typing import List, Optional, Tuple, Set
 
 class Graph:
     def __init__(self):
@@ -10,6 +10,7 @@ class Graph:
         self.edges = []
         self.selected_node = None
         self.mode = "process"  # Default mode for node creation
+        self.deadlock_nodes = set()  # Store nodes involved in deadlock
         
     def add_node(self, node_type: str, position: Tuple[int, int]) -> None:
         """Add a new node to the graph."""
@@ -34,6 +35,7 @@ class Graph:
         """Remove a node and all its connected edges."""
         self.edges = [e for e in self.edges if e.start != node and e.end != node]
         self.nodes.remove(node)
+        self.deadlock_nodes.discard(node)
         
     def get_node_at_position(self, position: Tuple[int, int]) -> Optional[Node]:
         """Return the node at the given position, if any."""
@@ -73,9 +75,10 @@ class Graph:
         self.mode = mode
         
     def has_cycle(self) -> bool:
-        """Check if the graph contains a cycle (deadlock)."""
+        """Check if the graph contains a cycle (deadlock) and highlight it."""
         visited = set()
         path = set()
+        self.deadlock_nodes.clear()  # Clear previous deadlock
         
         def dfs(node: Node) -> bool:
             visited.add(node)
@@ -87,20 +90,27 @@ class Graph:
             for neighbor in neighbors:
                 if neighbor not in visited:
                     if dfs(neighbor):
+                        if not self.deadlock_nodes:  # Only add if not already found
+                            self.deadlock_nodes.add(node)
                         return True
                 elif neighbor in path:
+                    # We found a cycle, add all nodes in the cycle to deadlock_nodes
+                    current = node
+                    self.deadlock_nodes.add(neighbor)
+                    self.deadlock_nodes.add(current)
                     return True
                     
             path.remove(node)
             return False
             
         # Start DFS from each unvisited node
+        has_deadlock = False
         for node in self.nodes:
             if node not in visited:
                 if dfs(node):
-                    return True
+                    has_deadlock = True
                     
-        return False
+        return has_deadlock
         
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the entire graph."""
@@ -110,4 +120,5 @@ class Graph:
             
         # Draw nodes on top
         for node in self.nodes:
+            node.in_deadlock = node in self.deadlock_nodes
             node.draw(screen) 

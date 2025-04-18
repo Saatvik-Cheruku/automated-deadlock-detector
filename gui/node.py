@@ -7,67 +7,48 @@ BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
 
 class Node:
-    def __init__(self, node_id: str, node_type: str, position: Tuple[int, int], radius: int = 30):
+    def __init__(self, position: Tuple[int, int], node_type: str):
         """
-        Initialize a node in the graph with enhanced visual appearance.
+        Initialize a node with enhanced visual appearance.
         
         Args:
-            node_id (str): Unique identifier for the node (e.g., 'P0', 'R1')
-            node_type (str): Type of node ('process' or 'resource')
-            position (Tuple[int, int]): (x, y) coordinates of the node
-            radius (int): Radius of the node circle
+            position (tuple): (x, y) coordinates
+            node_type (str): 'process' or 'resource'
         """
-        self.id = node_id
-        self.type = node_type
         self.position = position
-        self.radius = radius
-        self.selected = False
+        self.type = node_type
+        self.radius = 20
         self.color = GREEN if node_type == 'process' else RED
+        self.selected = False
         self.highlight_color = BLUE
-        self.font = pygame.font.Font(None, 24)
+        self.border_width = 3
         self.shadow_offset = 2
+        self.in_deadlock = False
         
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the node on the screen with enhanced visual effects."""
+        x, y = self.position
+        
         # Draw shadow
-        shadow_pos = (self.position[0] + self.shadow_offset, 
-                     self.position[1] + self.shadow_offset)
+        shadow_pos = (x + self.shadow_offset, y + self.shadow_offset)
         pygame.draw.circle(screen, (100, 100, 100), shadow_pos, self.radius)
         
         # Draw main circle
-        pygame.draw.circle(screen, self.color, self.position, self.radius)
+        if self.in_deadlock:
+            # Draw warning glow for deadlocked nodes
+            pygame.draw.circle(screen, YELLOW, self.position, self.radius + 5)
+            pygame.draw.circle(screen, self.color, self.position, self.radius)
+            border_color = YELLOW
+        else:
+            pygame.draw.circle(screen, self.color, self.position, self.radius)
+            border_color = self.highlight_color if self.selected else BLACK
         
         # Draw border
-        border_color = self.highlight_color if self.selected else BLACK
-        pygame.draw.circle(screen, border_color, self.position, self.radius, 3)
+        pygame.draw.circle(screen, border_color, self.position, self.radius, self.border_width)
         
-        # Draw node ID with shadow
-        text = self.font.render(self.id, True, BLACK)
-        text_rect = text.get_rect(center=self.position)
-        screen.blit(text, text_rect)
-        
-        # Draw selection highlight
-        if self.selected:
-            pygame.draw.circle(screen, WHITE, self.position, self.radius + 3, 2)
-            
-    def is_clicked(self, pos: Tuple[int, int]) -> bool:
-        """Check if the node was clicked."""
-        distance = ((pos[0] - self.position[0]) ** 2 + 
-                   (pos[1] - self.position[1]) ** 2) ** 0.5
-        return distance <= self.radius
-    
-    def get_connections(self, edges: List['Edge']) -> List['Node']:
-        """Get all nodes connected to this node."""
-        connected_nodes = []
-        for edge in edges:
-            if edge.start == self:
-                connected_nodes.append(edge.end)
-            elif edge.end == self:
-                connected_nodes.append(edge.start)
-        return connected_nodes
-
     def contains_point(self, point: Tuple[int, int]) -> bool:
         """Check if a point is inside the node."""
         x, y = point
@@ -79,4 +60,18 @@ class Node:
         """Check if two nodes are equal."""
         if not isinstance(other, Node):
             return False
-        return self.position == other.position and self.type == other.type 
+        return self.position == other.position and self.type == other.type
+
+    def __hash__(self) -> int:
+        """Make Node objects hashable."""
+        return hash((self.position, self.type))
+
+    def get_connections(self, edges: List['Edge']) -> List['Node']:
+        """Get all nodes connected to this node."""
+        connected_nodes = []
+        for edge in edges:
+            if edge.start == self:
+                connected_nodes.append(edge.end)
+            elif edge.end == self:
+                connected_nodes.append(edge.start)
+        return connected_nodes 

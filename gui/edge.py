@@ -1,6 +1,6 @@
 import pygame
 from typing import Tuple
-from gui.node import Node
+from .node import Node
 
 # Define colors
 BLACK = (0, 0, 0)

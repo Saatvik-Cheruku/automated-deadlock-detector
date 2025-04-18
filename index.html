@@ -75,18 +75,30 @@
             <h2>Live Demo</h2>
             <div class="demo-container">
                 <div class="demo-instructions">
-                    <h3>How to Use</h3>
+                    <h3>How to Run the Demo</h3>
                     <ol>
+                        <li>Clone the repository:
+                            <code>git clone https://github.com/Saatvik-Cheruku/automated-deadlock-detector.git</code>
+                        </li>
+                        <li>Install dependencies:
+                            <code>pip install -r requirements.txt</code>
+                        </li>
+                        <li>Run the application:
+                            <code>cd gui<br>python main.py</code>
+                        </li>
+                    </ol>
+                    <h4>Controls:</h4>
+                    <ul>
                         <li>Press '1' and click to create process nodes (green)</li>
                         <li>Press '2' and click to create resource nodes (red)</li>
                         <li>Left-click nodes to create edges</li>
                         <li>Right-click nodes to delete them</li>
                         <li>Click "Check Deadlock" to detect cycles</li>
-                    </ol>
+                    </ul>
+                    <a href="https://github.com/Saatvik-Cheruku/automated-deadlock-detector/archive/refs/heads/main.zip" class="demo-button">Download Demo</a>
                 </div>
                 <div class="demo-window">
-                    <!-- Python application will be embedded here -->
-                    <iframe src="gui/main.py" frameborder="0"></iframe>
+                    <img src="demo-screenshot.png" alt="Deadlock Detection Demo Screenshot" class="demo-screenshot">
                 </div>
             </div>
         </section>

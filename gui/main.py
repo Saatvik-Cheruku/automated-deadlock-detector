@@ -1,9 +1,9 @@
 import pygame
 import sys
-from gui.graph import Graph
-from gui.node import Node
-from gui.edge import Edge
-from gui.utils import Button, Panel
+from .graph import Graph
+from .node import Node
+from .edge import Edge
+from .ui_utils import Button, Panel
 
 # Initialize pygame
 pygame.init()
@@ -11,7 +11,7 @@ pygame.init()
 # Set up the display
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Deadlock Detection")
+pygame.display.set_caption("Deadlock Detection - No deadlock detected")
 
 # Colors
 WHITE = (255, 255, 255)
@@ -40,8 +40,10 @@ while running:
                 # Check if button was clicked
                 if check_button.is_clicked(pos):
                     if graph.has_cycle():
+                        pygame.display.set_caption("Deadlock Detection - DEADLOCK DETECTED!")
                         print("Deadlock detected!")
                     else:
+                        pygame.display.set_caption("Deadlock Detection - No deadlock detected")
                         print("No deadlock detected.")
                 
                 # Add node or create edge
