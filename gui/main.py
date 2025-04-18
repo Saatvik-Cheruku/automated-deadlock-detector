@@ -52,6 +52,8 @@ class DeadlockSimulator:
         self.animation_time = 0
         self.next_color_index = 0
         self.current_mode = "process"  # Default mode
+        self.edge_start = None  # For edge creation
+        self.edge_type = "request"  # Default edge type
         
         # Initialize deadlock detector
         self.detector = DeadlockDetector()
@@ -67,14 +69,22 @@ class DeadlockSimulator:
         panel_width = 300
         self.panel = Panel(
             20, 20,
-            panel_width, 200,
+            panel_width, 250,  # Increased height for more instructions
             "Instructions",
             [
-                "Left-click to create nodes",
-                "Right-click to delete nodes",
-                "Click 'Check Deadlock' to detect cycles",
-                "Use mode buttons to switch between",
-                "Process (P) and Resource (R) nodes"
+                "Node Creation:",
+                "• Process Mode (P): Create process nodes",
+                "• Resource Mode (R): Create resource nodes",
+                "",
+                "Edge Creation:",
+                "• Edge Mode: Create relationships",
+                "• Click first node then second",
+                "• Request: Process → Resource",
+                "• Allocation: Resource → Process",
+                "",
+                "Other:",
+                "• Right-click to delete nodes",
+                "• Check Deadlock to analyze"
             ]
         )
         
@@ -85,22 +95,44 @@ class DeadlockSimulator:
         
         # Mode selector buttons
         self.process_mode_button = Button(
-            self.width - button_width * 2 - button_spacing - 20, 20,
+            self.width - button_width * 3 - button_spacing * 2 - 20, 20,
             button_width, button_height,
             "Process Mode (P)",
             lambda: self.set_mode("process")
         )
         
         self.resource_mode_button = Button(
-            self.width - button_width - 20, 20,
+            self.width - button_width * 2 - button_spacing - 20, 20,
             button_width, button_height,
             "Resource Mode (R)",
             lambda: self.set_mode("resource")
         )
         
+        self.edge_mode_button = Button(
+            self.width - button_width - 20, 20,
+            button_width, button_height,
+            "Edge Mode (E)",
+            lambda: self.set_mode("edge")
+        )
+        
+        # Edge type selector buttons
+        self.request_edge_button = Button(
+            self.width - button_width * 2 - button_spacing - 20, 20 + button_height + button_spacing,
+            button_width, button_height,
+            "Request Edge",
+            lambda: self.set_edge_type("request")
+        )
+        
+        self.allocation_edge_button = Button(
+            self.width - button_width - 20, 20 + button_height + button_spacing,
+            button_width, button_height,
+            "Allocation Edge",
+            lambda: self.set_edge_type("allocation")
+        )
+        
         # Check deadlock button
         self.check_button = Button(
-            self.width - button_width - 20, 20 + button_height + button_spacing,
+            self.width - button_width - 20, 20 + (button_height + button_spacing) * 2,
             button_width, button_height,
             "Check Deadlock",
             self.check_deadlock
@@ -112,6 +144,7 @@ class DeadlockSimulator:
         # Update button colors
         self.process_mode_button.is_active = (mode == "process")
         self.resource_mode_button.is_active = (mode == "resource")
+        self.edge_mode_button.is_active = (mode == "edge")
         
     def get_next_process_color(self):
         color = PROCESS_COLORS[self.next_color_index]
@@ -159,18 +192,52 @@ class DeadlockSimulator:
                     self.resource_mode_button.is_clicked(mouse_pos)
                     continue
                     
+                if self.edge_mode_button.rect.collidepoint(mouse_pos):
+                    self.edge_mode_button.is_clicked(mouse_pos)
+                    continue
+                    
+                if self.request_edge_button.rect.collidepoint(mouse_pos):
+                    self.request_edge_button.is_clicked(mouse_pos)
+                    continue
+                    
+                if self.allocation_edge_button.rect.collidepoint(mouse_pos):
+                    self.allocation_edge_button.is_clicked(mouse_pos)
+                    continue
+                    
                 # Don't handle clicks in panel area
                 if self.panel.contains_point(mouse_pos):
                     continue
                     
                 if event.button == 1:  # Left click
-                    # Add process or resource based on current mode
-                    if self.current_mode == "process":
-                        process = self.add_process((mouse_pos[0] - 25, mouse_pos[1] - 25))
-                        print(f"Created process {process.name} at {process.position}")
+                    if self.current_mode == "edge":
+                        # Find clicked node
+                        clicked_node = None
+                        for process in self.detector.processes.values():
+                            if process.contains_point(mouse_pos):
+                                clicked_node = process
+                                break
+                        for resource in self.detector.resources.values():
+                            if resource.contains_point(mouse_pos):
+                                clicked_node = resource
+                                break
+                                
+                        if clicked_node:
+                            if self.edge_start is None:
+                                # Start new edge
+                                self.edge_start = clicked_node
+                                self.popup = Popup("Select second node", True)
+                            else:
+                                # Complete edge
+                                self.create_edge(self.edge_start, clicked_node)
+                                self.edge_start = None
                     else:
-                        resource = self.add_resource((mouse_pos[0] - 25, mouse_pos[1] - 25))
-                        print(f"Created resource {resource.name} at {resource.position}")
+                        # Add process or resource based on current mode
+                        if self.current_mode == "process":
+                            process = self.add_process((mouse_pos[0] - 25, mouse_pos[1] - 25))
+                            print(f"Created process {process.name} at {process.position}")
+                        else:
+                            resource = self.add_resource((mouse_pos[0] - 25, mouse_pos[1] - 25))
+                            print(f"Created resource {resource.name} at {resource.position}")
                         
                 elif event.button == 3:  # Right click
                     # Remove node if clicked
@@ -190,6 +257,9 @@ class DeadlockSimulator:
                 self.check_button.update(pygame.mouse.get_pos())
                 self.process_mode_button.update(pygame.mouse.get_pos())
                 self.resource_mode_button.update(pygame.mouse.get_pos())
+                self.edge_mode_button.update(pygame.mouse.get_pos())
+                self.request_edge_button.update(pygame.mouse.get_pos())
+                self.allocation_edge_button.update(pygame.mouse.get_pos())
                 
     def update(self, dt):
         # Update animations
@@ -213,15 +283,15 @@ class DeadlockSimulator:
         for process in self.detector.processes.values():
             # Draw allocation edges
             for resource in process.allocated:
-                start_pos = process.position
-                end_pos = resource.position
+                start_pos = resource.position  # Resource to Process
+                end_pos = process.position
                 pygame.draw.line(self.screen, (255, 255, 255),
                                (start_pos[0] + 25, start_pos[1] + 25),
                                (end_pos[0] + 25, end_pos[1] + 25), 2)
                                
             # Draw request edges (dashed)
             for resource in process.requesting:
-                start_pos = process.position
+                start_pos = process.position  # Process to Resource
                 end_pos = resource.position
                 dash_length = 5
                 dx = end_pos[0] - start_pos[0]
@@ -239,6 +309,27 @@ class DeadlockSimulator:
                         if i + dash_length > dist:
                             end = (end_pos[0] + 25, end_pos[1] + 25)
                         pygame.draw.line(self.screen, (200, 200, 200), start, end, 2)
+        
+        # Draw temporary edge while creating
+        if self.edge_start and self.current_mode == "edge":
+            mouse_pos = pygame.mouse.get_pos()
+            start_pos = (self.edge_start.position[0] + 25, self.edge_start.position[1] + 25)
+            if self.edge_type == "request":
+                # Draw dashed line for request
+                dash_length = 5
+                dx = mouse_pos[0] - start_pos[0]
+                dy = mouse_pos[1] - start_pos[1]
+                dist = math.sqrt(dx * dx + dy * dy)
+                if dist > 0:
+                    dx /= dist
+                    dy /= dist
+                    for i in range(0, int(dist), dash_length * 2):
+                        start = (start_pos[0] + dx * i, start_pos[1] + dy * i)
+                        end = (start_pos[0] + dx * (i + dash_length), start_pos[1] + dy * (i + dash_length))
+                        pygame.draw.line(self.screen, (200, 200, 200), start, end, 2)
+            else:
+                # Draw solid line for allocation
+                pygame.draw.line(self.screen, (255, 255, 255), start_pos, mouse_pos, 2)
         
         # Draw nodes
         for process in self.detector.processes.values():
@@ -279,6 +370,9 @@ class DeadlockSimulator:
         self.check_button.draw(self.screen)
         self.process_mode_button.draw(self.screen)
         self.resource_mode_button.draw(self.screen)
+        self.edge_mode_button.draw(self.screen)
+        self.request_edge_button.draw(self.screen)
+        self.allocation_edge_button.draw(self.screen)
         
         if self.popup:
             self.popup.draw(self.screen)
@@ -293,6 +387,27 @@ class DeadlockSimulator:
             
         pygame.quit()
         sys.exit()
+
+    def set_edge_type(self, edge_type: str):
+        """Set the type of edge to create"""
+        self.edge_type = edge_type
+        self.request_edge_button.is_active = (edge_type == "request")
+        self.allocation_edge_button.is_active = (edge_type == "allocation")
+
+    def create_edge(self, start_node, end_node):
+        """Create an edge between two nodes"""
+        if self.edge_type == "request":
+            if isinstance(start_node, Process) and isinstance(end_node, Resource):
+                start_node.request_resource(end_node)
+                self.popup = Popup(f"{start_node.name} requested {end_node.name}", True)
+            else:
+                self.popup = Popup("Request edges must go from Process to Resource", False)
+        else:  # allocation
+            if isinstance(start_node, Resource) and isinstance(end_node, Process):
+                end_node.allocate_resource(start_node)
+                self.popup = Popup(f"{start_node.name} allocated to {end_node.name}", True)
+            else:
+                self.popup = Popup("Allocation edges must go from Resource to Process", False)
 
 if __name__ == "__main__":
     app = DeadlockSimulator()
