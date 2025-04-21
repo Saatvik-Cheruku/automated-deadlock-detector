@@ -75,4 +75,39 @@ if (demoIframe) {
     });
     demoIframe.style.opacity = '0';
     demoIframe.style.transition = 'opacity 0.5s ease-in-out';
+}
+
+// Handle demo download
+const downloadButton = document.querySelector('.demo-button');
+if (downloadButton) {
+    downloadButton.addEventListener('click', (e) => {
+        // Don't prevent default - let the native download happen
+        const originalText = downloadButton.textContent;
+        downloadButton.textContent = 'Downloading...';
+        
+        // Create a hidden iframe to handle the download
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        try {
+            // Start the download
+            iframe.src = downloadButton.href;
+            
+            // Show success message
+            downloadButton.textContent = 'Downloaded!';
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+                downloadButton.textContent = originalText;
+            }, 2000);
+        } catch (error) {
+            console.error('Download error:', error);
+            downloadButton.textContent = 'Download Failed';
+            setTimeout(() => {
+                downloadButton.textContent = originalText;
+            }, 2000);
+        }
+    });
 } 
