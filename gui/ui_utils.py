@@ -47,128 +47,117 @@ def get_pulse_color(base_color: Tuple[int, int, int],
     return tuple(min(255, int(c * pulse)) for c in base_color)
 
 class Button:
-    def __init__(self, x, y, width, height, text, callback, color=PRIMARY_COLOR):
-        self.rect = pygame.Rect(x, y, width, height)
+    def __init__(self, x, y, width, height, text, callback):
+        self.x = int(x)
+        self.y = int(y)
+        self.width = int(width)
+        self.height = int(height)
         self.text = text
         self.callback = callback
-        self.base_color = color
-        self.current_color = color
-        self.hover_color = tuple(min(255, c + 30) for c in color)
-        self.font = pygame.font.Font(None, 20)
-        self.is_hovered = False
-        self.hover_progress = 0.0
+        self.font = pygame.font.Font(None, 28)
         self.is_active = False
-        self.animation_time = 0
-        self.click_scale = 1.0
+        self.hover = False
+        self.clicked = False
+        self.animation_time = 0.0
+        self.rect = pygame.Rect(x, y, width, height)
         self.result_color = None
-        self.result_time = 0
+        self.result_animation_start = 0
+        self.result_animation_duration = 1.0  # 1 second
+        self.border_radius = 20  # Increased border radius
+        
+    def animate_result(self, success):
+        """Start animation for success/failure"""
+        self.result_color = SUCCESS_COLOR if success else ACCENT_COLOR
+        self.result_animation_start = time.time()
         
     def update(self, mouse_pos):
-        self.is_hovered = self.rect.collidepoint(mouse_pos)
+        """Update button state"""
+        self.hover = self.rect.collidepoint(mouse_pos)
+        self.animation_time += 0.1
         
-        # Update hover animation
-        if self.is_hovered:
-            self.hover_progress = min(1.0, self.hover_progress + 0.1)
-        else:
-            self.hover_progress = max(0.0, self.hover_progress - 0.1)
-            
-        # Update click animation
-        if self.click_scale < 1.0:
-            self.click_scale = min(1.0, self.click_scale + 0.1)
-            
         # Update result animation
         if self.result_color:
-            self.result_time += 0.05
-            if self.result_time >= 2.0:
+            elapsed = time.time() - self.result_animation_start
+            if elapsed > self.result_animation_duration:
                 self.result_color = None
-                self.result_time = 0
-                
+        
     def is_clicked(self, pos):
+        """Check if button was clicked and handle the click"""
         if self.rect.collidepoint(pos):
-            self.click_scale = 0.9
+            self.clicked = True
             if self.callback:
                 self.callback()
             return True
         return False
         
-    def animate_result(self, success):
-        self.result_color = SUCCESS_COLOR if success else ACCENT_COLOR
-        self.result_time = 0
-        
     def draw(self, screen):
-        # Calculate current color based on hover and result
-        if self.result_color:
-            progress = math.sin(self.result_time * math.pi * 0.5)
-            current_color = tuple(int(b * 0.8 + a * 0.2)
-                                for a, b in zip(self.base_color, self.result_color))
-        else:
-            current_color = tuple(int(a + (b - a) * self.hover_progress)
-                                for a, b in zip(self.base_color, self.hover_color))
-        
-        # Create scaled rect for click animation
-        scaled_rect = pygame.Rect(
-            self.rect.centerx - (self.rect.width * self.click_scale) // 2,
-            self.rect.centery - (self.rect.height * self.click_scale) // 2,
-            self.rect.width * self.click_scale,
-            self.rect.height * self.click_scale
-        )
-        
         # Create button surface with transparency
-        button_surface = pygame.Surface((scaled_rect.width, scaled_rect.height), pygame.SRCALPHA)
+        button_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
         
-        # Draw main button shape
-        pygame.draw.rect(button_surface, (*current_color, 255),
-                        (0, 0, scaled_rect.width, scaled_rect.height),
-                        border_radius=20)
+        # Create gradient background
+        if self.is_active:
+            gradient = create_gradient_surface(self.width, self.height, 
+                                            (41, 128, 185), (52, 152, 219))
+        else:
+            gradient = create_gradient_surface(self.width, self.height, 
+                                            (44, 62, 80), (52, 73, 94))
+        button_surface.blit(gradient, (0, 0))
         
-        # Add subtle gradient
-        darker_color = tuple(max(0, c - 30) for c in current_color)
-        gradient = create_gradient_surface(
-            scaled_rect.width, scaled_rect.height,
-            (*current_color, 255),
-            (*darker_color, 255)
-        )
-        button_surface.blit(gradient, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        # Draw rounded rectangle
+        pygame.draw.rect(button_surface, (*PANEL_BG, 230),
+                        (0, 0, self.width, self.height),
+                        border_radius=self.border_radius)
         
-        # Add subtle highlight when hovered
-        if self.hover_progress > 0:
-            highlight_height = scaled_rect.height // 2
-            highlight = pygame.Surface((scaled_rect.width, highlight_height), pygame.SRCALPHA)
-            for i in range(highlight_height):
-                alpha = int(20 * self.hover_progress * (1 - i / highlight_height))
-                pygame.draw.line(highlight, (255, 255, 255, alpha),
-                               (0, i), (scaled_rect.width, i))
-            button_surface.blit(highlight, (0, 0))
+        # Add hover effect
+        if self.hover:
+            hover_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            hover_surface.fill((255, 255, 255, 30))
+            pygame.draw.rect(hover_surface, (255, 255, 255, 30),
+                           (0, 0, self.width, self.height),
+                           border_radius=self.border_radius)
+            button_surface.blit(hover_surface, (0, 0))
+            
+        # Add click effect
+        if self.clicked:
+            click_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            click_surface.fill((0, 0, 0, 50))
+            pygame.draw.rect(click_surface, (0, 0, 0, 50),
+                           (0, 0, self.width, self.height),
+                           border_radius=self.border_radius)
+            button_surface.blit(click_surface, (0, 0))
+            self.clicked = False
+            
+        # Add result animation
+        if self.result_color:
+            elapsed = time.time() - self.result_animation_start
+            progress = min(1.0, elapsed / self.result_animation_duration)
+            alpha = int(150 * (1 - progress))
+            result_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            result_surface.fill((*self.result_color, alpha))
+            pygame.draw.rect(result_surface, (*self.result_color, alpha),
+                           (0, 0, self.width, self.height),
+                           border_radius=self.border_radius)
+            button_surface.blit(result_surface, (0, 0))
         
-        # Draw text with shadow
+        # Draw text
         text_surface = self.font.render(self.text, True, TEXT_COLOR)
-        text_rect = text_surface.get_rect(center=(scaled_rect.width // 2, scaled_rect.height // 2))
+        text_rect = text_surface.get_rect(center=(self.width//2, self.height//2))
         
-        # Draw shadow
+        # Add text shadow
         shadow_surface = self.font.render(self.text, True, (0, 0, 0, 100))
-        shadow_rect = shadow_surface.get_rect(
-            center=(text_rect.centerx + 1, text_rect.centery + 1)
-        )
+        shadow_rect = shadow_surface.get_rect(center=(text_rect.centerx + 1, 
+                                                    text_rect.centery + 1))
         button_surface.blit(shadow_surface, shadow_rect)
         button_surface.blit(text_surface, text_rect)
         
-        # Add glow effect
-        if self.is_hovered or self.result_color:
-            glow_surface = pygame.Surface(
-                (scaled_rect.width + 12, scaled_rect.height + 12),
-                pygame.SRCALPHA
-            )
-            glow_color = self.result_color if self.result_color else current_color
-            for i in range(6):
-                alpha = int(20 * (1 - i/6) * (self.hover_progress if not self.result_color else 1))
-                pygame.draw.rect(glow_surface, (*glow_color, alpha),
-                               (i, i, glow_surface.get_width() - i*2, glow_surface.get_height() - i*2),
-                               border_radius=20)
-            screen.blit(glow_surface,
-                       (scaled_rect.x - 6, scaled_rect.y - 6))
-        
-        # Draw final button
-        screen.blit(button_surface, scaled_rect)
+        # Draw button with shadow
+        shadow = pygame.Surface((self.width + 4, self.height + 4), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 40))
+        pygame.draw.rect(shadow, (0, 0, 0, 40),
+                        (0, 0, self.width + 4, self.height + 4),
+                        border_radius=self.border_radius + 2)
+        screen.blit(shadow, (self.x - 2, self.y - 2))
+        screen.blit(button_surface, (self.x, self.y))
 
 class Panel:
     def __init__(self, x, y, width, height, title, instructions):
@@ -183,6 +172,9 @@ class Panel:
         self.padding = 20
         self.line_spacing = 12
         self.animation_time = 0.0
+        self.scroll_offset = 0
+        self.max_scroll = 0
+        self.scroll_speed = 20
         
         # Calculate required height based on content
         self.calculate_dimensions()
@@ -195,26 +187,23 @@ class Panel:
         title_surface = self.title_font.render(self.title, True, TEXT_COLOR)
         total_height += title_surface.get_height() + 15  # Less space after title
         
-        # Calculate width needed for text
-        required_width = max(
-            title_surface.get_width() + self.padding * 2,
-            *[self.font.render(instr, True, TEXT_COLOR).get_width() + self.padding * 2
-              for instr in self.instructions if instr]
-        )
-        self.width = max(self.width, required_width)
+        # Calculate height needed for instructions
+        for line in self.instructions:
+            text_surface = self.font.render(line, True, TEXT_COLOR)
+            total_height += text_surface.get_height() + self.line_spacing
+            
+        # Add bottom padding
+        total_height += self.padding
         
-        # Add height for each instruction line
-        for instruction in self.instructions:
-            if instruction:  # If not an empty line
-                text_surface = self.font.render(instruction, True, TEXT_COLOR)
-                total_height += text_surface.get_height() + self.line_spacing
-            else:
-                total_height += self.line_spacing * 0.7  # Less space for empty lines
-                
-        total_height += self.padding  # Add bottom padding
-        self.height = int(total_height)
-        self.width = int(self.width)
+        # Calculate maximum scroll
+        self.max_scroll = max(0, total_height - self.height)
         
+    def handle_scroll(self, event):
+        """Handle mouse wheel scrolling"""
+        if event.type == pygame.MOUSEWHEEL:
+            self.scroll_offset = max(0, min(self.max_scroll, 
+                                          self.scroll_offset - event.y * self.scroll_speed))
+            
     def draw(self, screen):
         self.animation_time += 0.02
         
@@ -261,35 +250,34 @@ class Panel:
         panel_surface.blit(shadow_surface, shadow_rect)
         panel_surface.blit(title_surface, title_rect)
         
-        # Draw instructions with improved styling
-        y = title_rect.bottom + 15
-        for instruction in self.instructions:
-            if instruction:
-                # Create background for text with gradient
-                text_surface = self.font.render(instruction, True, TEXT_COLOR)
-                text_rect = text_surface.get_rect(x=int(self.padding * 1.2), y=int(y))
-                
-                # Draw text background with subtle gradient
-                bg_rect = text_rect.inflate(15, 8)  # Smaller padding
-                bg_surface = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
-                for i in range(bg_rect.height):
-                    progress = i / bg_rect.height
-                    alpha = int(30 + 10 * math.sin(progress * math.pi + self.animation_time))
-                    pygame.draw.line(bg_surface, (*GRID_COLOR, alpha),
-                                   (0, i), (bg_rect.width, i))
-                panel_surface.blit(bg_surface, bg_rect)
-                
-                # Draw text shadow
-                shadow_surface = self.font.render(instruction, True, (0, 0, 0, 40))
-                shadow_rect = shadow_surface.get_rect(x=text_rect.x + 1, y=text_rect.y + 1)
-                panel_surface.blit(shadow_surface, shadow_rect)
-                
-                # Draw text
-                panel_surface.blit(text_surface, text_rect)
-                
-                y += text_rect.height + self.line_spacing
-            else:
-                y += self.line_spacing
+        # Create a clipping surface for instructions
+        clip_surface = pygame.Surface((self.width - self.padding * 2, 
+                                     self.height - title_rect.bottom - self.padding),
+                                    pygame.SRCALPHA)
+        
+        # Draw instructions with scroll offset
+        y = 0
+        for line in self.instructions:
+            text_surface = self.font.render(line, True, TEXT_COLOR)
+            clip_surface.blit(text_surface, (0, y - self.scroll_offset))
+            y += text_surface.get_height() + self.line_spacing
+            
+        # Draw the clipped instructions
+        panel_surface.blit(clip_surface, 
+                         (self.padding, title_rect.bottom + self.padding))
+        
+        # Draw scroll indicators if needed
+        if self.max_scroll > 0:
+            # Draw scroll bar background
+            scroll_height = (self.height - title_rect.bottom - self.padding * 2)
+            scroll_pos = (self.scroll_offset / self.max_scroll) * scroll_height
+            pygame.draw.rect(panel_surface, (100, 100, 100, 100),
+                           (self.width - 10, title_rect.bottom + self.padding,
+                            5, scroll_height))
+            # Draw scroll thumb
+            pygame.draw.rect(panel_surface, (200, 200, 200, 200),
+                           (self.width - 10, title_rect.bottom + self.padding + scroll_pos,
+                            5, 20))
         
         # Add subtle outer glow
         glow_width = self.width + 10
@@ -394,4 +382,28 @@ class Popup:
         
         # Draw everything to screen
         screen.blit(shadow_surface, (x - 4, y - 4))
-        screen.blit(popup_surface, (x, y)) 
+        screen.blit(popup_surface, (x, y))
+
+    def handle_mouse_click(self, pos: Tuple[int, int], button: int):
+        """Handle mouse click"""
+        # Check mode button clicks
+        for btn in this.mode_buttons.values():
+            if btn.is_clicked(pos):
+                this.set_mode(btn.text.lower().split()[0])
+                return
+                
+        # Check action button clicks
+        if this.check_deadlock_button.is_clicked(pos):
+            this.check_deadlock()
+            return
+        if this.clear_graph_button.is_clicked(pos):
+            this.clear_graph()
+            return
+            
+        # Check edge type button clicks
+        if this.request_edge_button.is_clicked(pos):
+            this.set_edge_type("request")
+            return
+        if this.allocation_edge_button.is_clicked(pos):
+            this.set_edge_type("allocation")
+            return 

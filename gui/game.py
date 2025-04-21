@@ -6,6 +6,24 @@ from gui.ui_utils import Button, Panel, Popup, PRIMARY_COLOR, SECONDARY_COLOR, P
 from deadlock_detector import DeadlockDetector
 from process import Process, Resource
 
+class GameState:
+    def __init__(self):
+        self.current_mode = 'process'  # Default mode
+        self.edge_start = None  # For edge creation
+        self.active_popup: Optional[Popup] = None
+        self.animation_time = 0
+
+    def update(self, dt: float):
+        """Update game state"""
+        self.animation_time += dt
+        if self.animation_time >= 2 * 3.14159:  # Reset after one full cycle
+            self.animation_time = 0
+
+        # Update active popup if exists
+        if self.active_popup:
+            if self.active_popup.update(dt):
+                self.active_popup = None
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -32,6 +50,9 @@ class Game:
         
         # Initialize UI components
         self.setup_ui()
+        
+        # Initialize game state
+        self.game_state = GameState()
         
     def setup_ui(self):
         button_width = 180
@@ -280,6 +301,9 @@ class Game:
     def update(self, dt: float):
         # Update popups
         self.popups = [popup for popup in self.popups if not popup.update(dt)]
+        
+        # Update game state
+        self.game_state.update(dt)
         
     def draw(self):
         # Fill background
