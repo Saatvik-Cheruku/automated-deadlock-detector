@@ -92,13 +92,14 @@ class DeadlockDetectionSimulator:
                          lambda: self.set_mode("edge"))
         }
         
-        # Create edge type buttons in second row
+        # Create edge type buttons in second row with increased width
         edge_type_y = start_y + button_height + button_margin
+        edge_button_width = 220  # Increased width for edge buttons
         self.request_edge_button = Button(start_x, edge_type_y,
-                                        button_width, button_height, "Request Edge",
+                                        edge_button_width, button_height, "Request Edge (R)",
                                         lambda: self.set_edge_type("request"))
-        self.allocation_edge_button = Button(start_x + button_width + button_margin, edge_type_y,
-                                           button_width, button_height, "Allocation Edge",
+        self.allocation_edge_button = Button(start_x + edge_button_width + button_margin, edge_type_y,
+                                           edge_button_width, button_height, "Allocation Edge (A)",
                                            lambda: self.set_edge_type("allocation"))
         
         # Mode switching cooldown
@@ -121,6 +122,9 @@ class DeadlockDetectionSimulator:
             "• 2 - Resource Mode",
             "• 3 - Edge Mode",
             "• D - Toggle Dual Mode",
+            "• R - Request Edge",
+            "• A - Allocation Edge",
+            "• C - Check Deadlock",
             "",
             "🖱️ Mouse Controls:",
             "• Left Click - Create/Select",
@@ -156,8 +160,9 @@ class DeadlockDetectionSimulator:
         button_height = 40
         button_margin = 10
         
-        # Position Check Deadlock button at bottom right corner
-        check_button_x = self.width - button_width - 10
+        # Position Check Deadlock button at bottom right corner with increased width
+        check_button_width = 220  # Increased width for Check Deadlock button
+        check_button_x = self.width - check_button_width - 10
         check_button_y = self.height - button_height - 10
         
         # Position Clear Graph button above Check Deadlock button
@@ -165,10 +170,10 @@ class DeadlockDetectionSimulator:
         clear_button_y = check_button_y - button_height - button_margin
         
         self.check_button = Button(check_button_x, check_button_y,
-                                 button_width, button_height, "Check Deadlock",
+                                 check_button_width, button_height, "Check Deadlock (C)",
                                  self.check_deadlock)
         self.clear_button = Button(clear_button_x, clear_button_y,
-                                 button_width, button_height, "Clear Graph",
+                                 check_button_width, button_height, "Clear Graph",
                                  self.clear_graph)
 
     def set_mode(self, new_mode):
@@ -194,64 +199,84 @@ class DeadlockDetectionSimulator:
         return self.detector.add_resource(pos)
         
     def check_deadlock(self):
-        """Check for deadlocks and display result"""
-        has_deadlock = False
-        deadlocked_processes = set()
-        
-        # Build adjacency lists for the resource allocation graph
-        allocation_graph = {}
-        request_graph = {}
-        
-        # Initialize graphs
+        """Check for deadlocks in the graph"""
+        # Reset all nodes to normal state
         for process in self.detector.processes.values():
-            allocation_graph[process] = set(process.allocated)
-            request_graph[process] = set(process.requesting)
-        
-        # Check for cycles in the graph
-        visited = set()
-        path = set()
-        
-        def dfs(process):
-            nonlocal has_deadlock
-            if process in path:
-                has_deadlock = True
-                deadlocked_processes.update(path)
-                return
-            
-            if process in visited:
-                return
-                
-            visited.add(process)
-            path.add(process)
-            
-            # Check resources this process is requesting
-            for resource in request_graph[process]:
-                # Find processes that have this resource allocated
-                for other_process in self.detector.processes.values():
-                    if resource in allocation_graph[other_process]:
-                        dfs(other_process)
-            
-            path.remove(process)
-        
-        # Start DFS from each process
-        for process in self.detector.processes.values():
-            if process not in visited:
-                dfs(process)
-        
-        if has_deadlock:
-            self.popup = Popup("Deadlock Detected!", False)
+            process.color = process.original_color
+        for resource in self.detector.resources.values():
+            resource.color = resource.original_color
+
+        # Find all processes
+        processes = list(self.detector.processes.values())
+        if not processes:
+            self.popup = Popup("No Processes", False)
             self.check_button.animate_result(False)
-            # Highlight deadlocked processes
-            for process in self.detector.processes.values():
-                if process in deadlocked_processes:
-                    process.color = (255, 0, 0)  # Red for deadlocked processes
-        else:
-            self.popup = Popup("No Deadlock Detected", True)
-            self.check_button.animate_result(True)
-            # Reset process colors
-            self.next_color_index = 0
-            for process in self.detector.processes.values():
-                process.color = self.get_next_process_color()
+            return
+
+        # Build adjacency list for the graph
+        adjacency_list = {}
+        for process in processes:
+            adjacency_list[process] = []
+            # Add edges for resources this process is requesting
+            for resource in process.requesting:
+                # Find processes that have this resource allocated
+                for other_process in processes:
+                    if resource in other_process.allocated:
+                        adjacency_list[process].append(other_process)
+
+        # Check each process for deadlock using DFS
+        def find_cycle(start_process):
+            visited = set()
+            path = []
+            cycle_found = [False]
+            cycle_nodes = []
+
+            def dfs(current, path_so_far):
+                if current in path_so_far:
+                    # Found a cycle
+                    cycle_start = path_so_far.index(current)
+                    cycle_nodes.extend(path_so_far[cycle_start:])
+                    cycle_found[0] = True
+                    return
+                
+                if current in visited or cycle_found[0]:
+                    return
+
+                visited.add(current)
+                path_so_far.append(current)
+
+                for next_process in adjacency_list[current]:
+                    dfs(next_process, path_so_far)
+
+                if not cycle_found[0]:
+                    path_so_far.pop()
+
+            dfs(start_process, path)
+            return cycle_nodes
+
+        # Check each process for deadlock
+        for start_process in processes:
+            cycle = find_cycle(start_process)
+            if cycle:
+                # Highlight the cycle with bright orange color
+                deadlock_color = (255, 165, 0)  # Bright orange
+                for process in cycle:
+                    process.color = deadlock_color
+                    # Highlight the edges (resources) involved in the cycle
+                    for i in range(len(cycle)):
+                        current = cycle[i]
+                        next_process = cycle[(i + 1) % len(cycle)]
+                        # Find the resource that connects these processes
+                        for resource in current.requesting:
+                            if resource in next_process.allocated:
+                                resource.color = deadlock_color
+
+                self.popup = Popup("Deadlock Detected!", False)
+                self.check_button.animate_result(False)
+                return
+
+        self.popup = Popup("No Deadlock Detected", True)
+        self.check_button.animate_result(True)
     
     def handle_events(self):
         for event in pygame.event.get():
@@ -541,6 +566,12 @@ class DeadlockDetectionSimulator:
                     self.dual_mode_toggle_cooldown = current_time
                     # Show feedback popup
                     self.show_mode_feedback()
+            elif event.key == pygame.K_r:  # Request Edge with 'R' key
+                self.set_edge_type("request")
+            elif event.key == pygame.K_a:  # Allocation Edge with 'A' key
+                self.set_edge_type("allocation")
+            elif event.key == pygame.K_c:  # Check Deadlock with 'C' key
+                self.check_deadlock()
 
     def show_mode_feedback(self):
         if self.dual_mode:
