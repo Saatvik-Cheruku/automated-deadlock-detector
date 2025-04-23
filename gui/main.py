@@ -203,8 +203,10 @@ class DeadlockDetectionSimulator:
         # Reset all nodes to normal state
         for process in self.detector.processes.values():
             process.color = process.original_color
+            process.has_glow = False  # Reset glow effect
         for resource in self.detector.resources.values():
             resource.color = resource.original_color
+            resource.has_glow = False  # Reset glow effect
 
         # Find all processes
         processes = list(self.detector.processes.values())
@@ -258,10 +260,11 @@ class DeadlockDetectionSimulator:
         for start_process in processes:
             cycle = find_cycle(start_process)
             if cycle:
-                # Highlight the cycle with bright orange color
+                # Highlight the cycle with bright orange color and glow effect
                 deadlock_color = (255, 165, 0)  # Bright orange
                 for process in cycle:
                     process.color = deadlock_color
+                    process.has_glow = True  # Enable glow effect
                     # Highlight the edges (resources) involved in the cycle
                     for i in range(len(cycle)):
                         current = cycle[i]
@@ -270,6 +273,7 @@ class DeadlockDetectionSimulator:
                         for resource in current.requesting:
                             if resource in next_process.allocated:
                                 resource.color = deadlock_color
+                                resource.has_glow = True  # Enable glow effect
 
                 self.popup = Popup("Deadlock Detected!", False)
                 self.check_button.animate_result(False)
@@ -412,18 +416,19 @@ class DeadlockDetectionSimulator:
                            (end_x + arrow_length * math.cos(angle - arrow_angle),
                             end_y + arrow_length * math.sin(angle - arrow_angle)), 2)
         
-        # Draw nodes
+        # Draw nodes with glow effect if enabled
         for process in self.detector.processes.values():
-            # Draw glow effect
-            glow_radius = 30
-            glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            for r in range(glow_radius, 0, -1):
-                alpha = int(50 * (1 - r/glow_radius))
-                pygame.draw.circle(glow_surface, (*process.color, alpha),
-                                 (glow_radius, glow_radius), r)
-            self.screen.blit(glow_surface,
-                           (process.position[0] + 25 - glow_radius,
-                            process.position[1] + 25 - glow_radius))
+            # Draw glow effect if enabled
+            if process.has_glow:
+                glow_radius = 35  # Increased glow radius
+                glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                for r in range(glow_radius, 0, -1):
+                    alpha = int(100 * (1 - r/glow_radius))  # Increased alpha for more visible glow
+                    pygame.draw.circle(glow_surface, (*process.color, alpha),
+                                     (glow_radius, glow_radius), r)
+                self.screen.blit(glow_surface,
+                               (process.position[0] + 25 - glow_radius,
+                                process.position[1] + 25 - glow_radius))
             
             # Draw main circle
             pygame.draw.circle(self.screen, process.color,
@@ -436,8 +441,20 @@ class DeadlockDetectionSimulator:
             self.screen.blit(text, text_rect)
             
         for resource in self.detector.resources.values():
+            # Draw glow effect if enabled
+            if resource.has_glow:
+                glow_radius = 35  # Increased glow radius
+                glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                for r in range(glow_radius, 0, -1):
+                    alpha = int(100 * (1 - r/glow_radius))  # Increased alpha for more visible glow
+                    pygame.draw.circle(glow_surface, (*resource.color, alpha),
+                                     (glow_radius, glow_radius), r)
+                self.screen.blit(glow_surface,
+                               (resource.position[0] + 25 - glow_radius,
+                                resource.position[1] + 25 - glow_radius))
+            
             # Draw resource as red square
-            pygame.draw.rect(self.screen, (200, 50, 50),
+            pygame.draw.rect(self.screen, resource.color,
                            (resource.position[0], resource.position[1], 50, 50))
             # Draw resource name
             font = pygame.font.Font(None, 36)
@@ -725,4 +742,4 @@ class DeadlockDetectionSimulator:
 
 if __name__ == "__main__":
     app = DeadlockDetectionSimulator()
-    app.run()
+    app.run() 

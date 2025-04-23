@@ -6,6 +6,7 @@ class Process:
         self.position = position
         self.color = color
         self.original_color = color
+        self.has_glow = False  # Flag for glow effect
         self.requesting = set()  # Set of resources this process is requesting
         self.allocated = set()   # Set of resources allocated to this process
         
@@ -49,6 +50,7 @@ class Resource:
         self.position = position
         self.color = color
         self.original_color = color
+        self.has_glow = False  # Flag for glow effect
         self.allocated_to: Optional[Process] = None  # Process this resource is allocated to
         self.requested_by: Set[Process] = set()      # Processes requesting this resource
         
