@@ -12,6 +12,30 @@ A Python-based simulation tool that demonstrates deadlock detection in operating
 
 ## Installation
 
+### For Windows Users (Downloading from Website)
+
+1. **Install Python**:
+   - Download Python from [python.org](https://www.python.org/downloads/)
+   - During installation, make sure to check "Add Python to PATH"
+   - Choose "Install Now" with default settings
+   - Verify installation by opening Command Prompt and typing:
+     ```bash
+     python --version
+     ```
+
+2. **Install Dependencies**:
+   - Open Command Prompt (cmd)
+   - Navigate to the project directory:
+     ```bash
+     cd path\to\automated-deadlock-detector
+     ```
+   - Install requirements:
+     ```bash
+     python -m pip install -r requirements.txt
+     ```
+
+### For Developers (Using Git)
+
 1. Clone the repository:
 ```bash
 git clone <repository-url>
@@ -26,7 +50,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 3. Install dependencies:
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Usage
